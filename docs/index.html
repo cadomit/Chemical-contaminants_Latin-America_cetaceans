@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Contaminants in Cetaceans of Latin America</title>
+<meta name="description" content="Literature review dashboard of metals, metalloids, persistent organic pollutants, emerging contaminants, plastics and noise in cetaceans of Latin America. Laboratório de Ecologia e Conservação (LEC), UFPR.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Source+Serif+4:wght@400&display=swap">
+<style>
+:root{--color-fg:#1b2129;--color-fg-muted:#5a6470;--color-bg:#ffffff;--color-panel:#f5f7f9;--color-border-line:#dce1e6;--color-ok:#2e7d4f;--color-warn:#a85f00;--color-bad:#b3261e;
+--font-anthropic-sans:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;--font-anthropic-serif:"Source Serif 4",Georgia,serif;
+--cds-font-size-caption:12px;--cds-font-size-body:15px;--cds-font-size-heading:18px;--cds-font-size-title:30px;--cds-font-weight-medium:600;
+--cds-gap-xs:4px;--cds-gap-sm:8px;--cds-gap-md:12px;--cds-gap-lg:16px;--cds-gap-xl:28px;--cds-pad-md:10px;--cds-pad-lg:16px;--cds-radius:8px;
+--cds-chart-muted:#b6bec7;--cds-chart-grid:#e5e9ed;--cds-text-secondary:#5a6470;--cds-surface-popover:#ffffff;--cds-border:#dce1e6;--cds-shadow-popover:0 4px 14px rgba(0,0,0,.12);
+--c0:#2f6f9f;--c1:#d0743c;--c2:#3c9a6b;--c3:#8a5cc2;--c4:#b8962e;--c5:#c24c6a;--c6:#3fa9b8;--c7:#7a7a7a;color-scheme:light}
+@media (prefers-color-scheme: dark){:root{--color-fg:#e7ebef;--color-fg-muted:#a3adb8;--color-bg:#12161b;--color-panel:#1b2128;--color-border-line:#2e3742;--color-warn:#e0a24a;
+--cds-chart-muted:#56606b;--cds-chart-grid:#28313a;--cds-text-secondary:#a3adb8;--cds-surface-popover:#1f262e;--cds-border:#36404b;--cds-shadow-popover:0 4px 14px rgba(0,0,0,.5);
+--c0:#5a9fd4;--c1:#e8915b;--c2:#5cbf8c;--c3:#a885e0;--c4:#d4b354;--c5:#e07390;--c6:#5cc6d4;--c7:#9a9a9a;color-scheme:dark}}
+html,body{margin:0;background:var(--color-bg);color:var(--color-fg)}
+#dash-root{max-width:1120px;margin:0 auto;padding:28px max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px))}
+.dash-select{font:inherit;font-size:13px;padding:5px 8px;border-radius:6px;border:1px solid var(--color-border-line);background-color:var(--color-panel);color:var(--color-fg)}
+.dash-skeleton{color:transparent!important;background:var(--color-border-line);border-radius:4px}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+(function(){
+const FILES={conc:'data/concentrations.json',qual:'data/pressures.json',estudos:'data/studies.json',sites:'data/focal_species_records.json',trends:'data/author_reported_trends.json',basemap:'data/basemap_latam.geojson'};
+const RAW={},ST={};Object.keys(FILES).forEach(k=>ST[k]='loading');
+const calcs={},draws={};
+const loaded=()=>Object.values(ST).every(s=>s==='ok');
+window.claude={use:async(name)=>name==='downloads'?{save:async({filename,data})=>{const b=new Blob([data],{type:'text/csv;charset=utf-8'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);return {status:'saved'};}}:null};
+window.dash={colors:['var(--c0)','var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c6)','var(--c7)'],
+ calc:(id,o)=>{calcs[id]=o},loader:()=>{},params:()=>({}),setParams:()=>{},resetParams:()=>{},
+ setLink:(n)=>{try{history.replaceState(null,'','#'+n)}catch(e){}},
+ data:(id)=>{ if(FILES[id]) return {status:ST[id],data:ST[id]==='ok'?RAW[id]:[]};
+   if(calcs[id]){ const c=calcs[id]; if(!c.inputs.every(i=>ST[i]==='ok')) return {status:c.inputs.some(i=>ST[i]==='error')?'error':'loading',data:null}; if(!c.v) c.v=c.fn(...c.inputs.map(i=>RAW[i])); return {status:'ok',data:c.v}; }
+   return {status:'missing',data:[]}; },
+ onData:(f)=>f(),
+ draw:(name,fn)=>{ if(fn){draws[name]=fn;return;} const f=draws[name]; if(!f) return; document.querySelectorAll('[data-draw="'+name+'"]').forEach(el=>{ if(el.closest('[hidden]')) return; try{f(el)}catch(e){console.error(name,e)} }); }};
+window.__redrawAll=()=>Object.keys(draws).forEach(n=>dash.draw(n));
+Object.entries(FILES).forEach(([k,u])=>fetch(u).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(j=>{RAW[k]=j;ST[k]='ok'}).catch(()=>{ST[k]='error'}).finally(()=>window.__redrawAll&&window.__redrawAll()));
+let tw;window.addEventListener('resize',()=>{clearTimeout(tw);tw=setTimeout(()=>window.__redrawAll(),150)});
+document.addEventListener('click',e=>{if(e.target.closest('.tabs button'))setTimeout(()=>window.__redrawAll(),0)});
+window.addEventListener('beforeprint',()=>setTimeout(()=>window.__redrawAll(),0));
+window.addEventListener('afterprint',()=>setTimeout(()=>window.__redrawAll(),0));
+})();
+</script>
+</head>
+<body>
+<div id="dash-root">
+<style>
+.cx [hidden]{display:none!important}
+.cx{display:flex;flex-direction:column;gap:var(--cds-gap-xl);font-family:var(--font-anthropic-sans);color:var(--color-fg)}
+.cx h1{font-family:var(--font-anthropic-serif);font-weight:400;font-size:var(--cds-font-size-title);margin:0;text-wrap:balance}
+.cx h2{font-size:var(--cds-font-size-heading);font-weight:var(--cds-font-weight-medium);margin:0;text-wrap:balance}
+.cx h3{font-size:var(--cds-font-size-body);font-weight:var(--cds-font-weight-medium);margin:0}
+.cx p{margin:0;max-width:76ch;line-height:1.55}
+.cx .muted{color:var(--color-fg-muted);font-size:var(--cds-font-size-caption)}
+.cx .head{display:flex;flex-direction:column;gap:var(--cds-gap-sm)}
+.cx .credit{font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+.cx .credit a{color:var(--color-fg)}
+.cx .tabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid var(--color-border-line);padding-bottom:8px}
+.cx .tabs button{font:inherit;font-size:13px;padding:6px 12px;border-radius:var(--cds-radius);border:1px solid var(--color-border-line);background:var(--color-bg);color:var(--color-fg);cursor:pointer}
+.cx .tabs button[aria-selected="true"]{background:var(--color-panel);border-color:var(--color-fg-muted);font-weight:var(--cds-font-weight-medium)}
+.cx .tabs button:focus-visible,.cx .btn:focus-visible{outline:2px solid var(--color-fg);outline-offset:2px}
+.cx .pane{display:flex;flex-direction:column;gap:var(--cds-gap-xl)}
+.cx .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--cds-gap-md)}
+.cx .card{background:var(--color-panel);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:var(--cds-pad-lg);display:flex;flex-direction:column;gap:var(--cds-gap-sm);min-width:0}
+.cx .big{font-family:var(--font-anthropic-serif);font-weight:400;font-size:2.2rem;font-variant-numeric:tabular-nums;line-height:1.1}
+.cx .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:var(--cds-gap-lg)}
+.cx section{display:flex;flex-direction:column;gap:var(--cds-gap-md);min-width:0}
+.cx .chart{position:relative;min-height:220px;min-width:0}
+.cx .chart svg{display:block;overflow:visible}
+.cx .chart svg.clip{overflow:hidden}
+.cx .chart text{fill:var(--cds-text-secondary);font-size:11px;font-family:var(--font-anthropic-sans)}
+.cx .chart .val{fill:var(--color-fg);font-variant-numeric:tabular-nums}
+.cx .chart .sp{fill:var(--color-fg);font-size:12px}
+.cx .tip{position:absolute;pointer-events:none;background:var(--cds-surface-popover);border:1px solid var(--cds-border);box-shadow:var(--cds-shadow-popover);border-radius:var(--cds-radius);padding:8px 10px;font-size:12px;line-height:1.45;max-width:300px;z-index:5;color:var(--color-fg)}
+.cx .tip .k{color:var(--cds-text-secondary)}
+.cx .controls{display:flex;flex-wrap:wrap;gap:var(--cds-gap-md);align-items:end}
+.cx .controls label{display:flex;flex-direction:column;gap:4px;font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+.cx .legend{display:flex;flex-wrap:wrap;gap:var(--cds-gap-md);font-size:var(--cds-font-size-caption);color:var(--color-fg-muted);align-items:center}
+.cx .legend span{display:inline-flex;align-items:center;gap:6px}
+.cx .sw{display:inline-block;width:10px;height:10px;border-radius:50%}
+.cx .swo{display:inline-block;width:10px;height:10px;border-radius:50%;border:2px solid var(--color-fg-muted);box-sizing:border-box}
+.cx .swl{display:inline-block;width:22px;height:6px;border-radius:3px;background:var(--cds-chart-muted)}
+.cx .tw{overflow-x:auto;border:1px solid var(--color-border-line);border-radius:var(--cds-radius);max-height:520px;overflow-y:auto}
+.cx table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+.cx th,.cx td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--color-border-line);vertical-align:top}
+.cx th{position:sticky;top:0;background:var(--color-panel);font-weight:var(--cds-font-weight-medium);white-space:nowrap;z-index:1}
+.cx td.num,.cx th.num{text-align:right;white-space:nowrap}
+.cx a{color:inherit}
+.cx .hl{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:var(--cds-gap-md)}
+.cx .hl .card p{font-size:13px}
+.cx .tag{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--color-fg-muted)}
+.cx ul{margin:0;padding-left:1.2em;max-width:84ch}
+.cx li{margin-bottom:6px;line-height:1.5}
+.cx .caution{border:1px solid var(--color-warn);border-radius:var(--cds-radius);padding:var(--cds-pad-md) var(--cds-pad-lg);display:flex;flex-direction:column;gap:6px}
+.cx .caution .tag{color:var(--color-warn)}
+.cx .caution p,.cx .caution li{font-size:13px}
+.cx .btns{display:flex;flex-wrap:wrap;gap:var(--cds-gap-sm);align-items:center}
+.cx .btn{font:inherit;font-size:13px;padding:7px 14px;border-radius:var(--cds-radius);border:1px solid var(--color-fg-muted);background:var(--color-panel);color:var(--color-fg);cursor:pointer}
+.cx .fail{color:var(--color-fg-muted);font-size:var(--cds-font-size-caption);padding:var(--cds-pad-md)}
+.cx footer{border-top:1px solid var(--color-border-line);padding-top:var(--cds-pad-md)}
+.cx .prov p,.cx .prov li{font-size:13.5px}
+@media print{.cx .tabs,.cx .btns,.cx .controls{display:none}.cx .pane{break-before:page}.cx #overview{break-before:auto}.cx .tw{max-height:none;overflow:visible}}
+</style>
+
+<div class="cx">
+  <header class="head" id="top">
+    <h1>Contaminants in Cetaceans of Latin America</h1>
+    <p data-read lang="en">This review compiles <b data-draw="kpi" data-k="estudos" data-source="kpis" data-field="estudos" data-row="0">—</b> studies, from which <b data-draw="kpi" data-k="valores" data-source="kpis" data-field="valores" data-row="0">—</b> concentration values were extracted for <b data-draw="kpi" data-k="especies" data-source="kpis" data-field="especies" data-row="0">—</b> species or species groups. <b data-draw="lider" data-source="porPais" data-field="country" data-row="0">—</b> accounts for <b data-draw="liderpct" data-source="porPais" data-field="pct" data-row="0">—</b> of the Latin American studies, whereas Guyana and Suriname remain without any published record of contaminants in cetaceans in the databases consulted.</p>
+    <p class="credit">Credit: <a href="https://www.lecufpr.net" target="_blank" rel="noopener">Laboratório de Ecologia e Conservação (LEC), Universidade Federal do Paraná (UFPR) · www.lecufpr.net</a>. Sources: PubMed, SciSpace and Consensus, searched on 18 November 2026.</p>
+    <p class="credit">Public version · <a href="https://github.com/cadomit/Chemical-contaminants_Latin-America_cetaceans" target="_blank" rel="noopener">GitHub repository</a> · <a href="Cetacean_Contaminants_LatAm_Review_LEC-UFPR.pdf" target="_blank" rel="noopener">PDF report</a> · <a href="https://github.com/cadomit/Chemical-contaminants_Latin-America_cetaceans/tree/main/data" target="_blank" rel="noopener">CSV data</a></p>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Dashboard sections">
+    <button type="button" role="tab" id="tab-overview" data-tab="overview" aria-selected="true">Overview</button>
+    <button type="button" role="tab" id="tab-species" data-tab="species" aria-selected="false">Species synthesis</button>
+    <button type="button" role="tab" id="tab-focal" data-tab="focal" aria-selected="false">Focal species: maps and trends</button>
+    <button type="button" role="tab" id="tab-pressures" data-tab="pressures" aria-selected="false">Plastics and noise</button>
+    <button type="button" role="tab" id="tab-studies" data-tab="studies" aria-selected="false">Studies and downloads</button>
+    <button type="button" role="tab" id="tab-provenance" data-tab="provenance" aria-selected="false">Data provenance and interpretation</button>
+  </nav>
+
+  <div class="pane" id="overview" role="tabpanel" aria-labelledby="tab-overview">
+    <div class="kpis" id="kpis">
+      <div class="card"><span class="muted">Studies reviewed</span><span class="big" data-draw="kpi" data-k="estudos" data-source="kpis" data-field="estudos" data-row="0">—</span></div>
+      <div class="card"><span class="muted">Concentration values</span><span class="big" data-draw="kpi" data-k="valores" data-source="kpis" data-field="valores" data-row="0">—</span></div>
+      <div class="card"><span class="muted">Species or species groups</span><span class="big" data-draw="kpi" data-k="especies" data-source="kpis" data-field="especies" data-row="0">—</span></div>
+      <div class="card"><span class="muted">Latin American countries with values</span><span class="big" data-draw="kpi" data-k="paises" data-source="kpis" data-field="paises" data-row="0">—</span></div>
+    </div>
+    <section id="highlights">
+      <h2>Key findings from the literature</h2>
+      <div class="hl">
+        <div class="card"><span class="tag">Metals · Hg</span><p>The highest hepatic mercury burden reported in the region was found in false killer whales (<i>Pseudorca crassidens</i>) stranded in southern South America, with a mean of <b data-draw="v" data-id="20" data-f="mean" data-source="conc" data-field="mean" data-where="id=20">—</b> µg/g dry weight, which exceeds published thresholds for hepatic damage.</p></div>
+        <div class="card"><span class="tag">POPs · PCBs</span><p>Rough-toothed dolphins (<i>Steno bredanensis</i>) from southeastern Brazil reached <b data-draw="v" data-id="101" data-f="max" data-source="conc" data-field="max" data-where="id=101">—</b> ng/g lipid weight of ΣPCB, the highest concentration documented for the species worldwide.</p></div>
+        <div class="card"><span class="tag">POPs · Rio de Janeiro bays</span><p>Guiana dolphins from Sepetiba Bay presented ΣPCB up to <b data-draw="v" data-id="135" data-f="max" data-source="conc" data-field="max" data-where="id=135">—</b> ng/g lipid weight; the authors associate rising trends with dredging and with the Fundão tailings-dam collapse.</p></div>
+        <div class="card"><span class="tag">PFAS</span><p>Hepatic PFOS in Guiana dolphins from Guanabara Bay reached <b data-draw="v" data-id="168" data-f="max" data-source="conc" data-field="max" data-where="id=168">—</b> ng/g dry weight. This remains the only PFAS assessment of Latin American cetaceans identified in this review.</p></div>
+        <div class="card"><span class="tag">Emerging contaminants</span><p>UV filters in franciscana and Guiana dolphin fetuses reached <b data-draw="v" data-id="171" data-f="max" data-source="conc" data-field="max" data-where="id=171">—</b> ng/g lipid weight, the highest values reported in biota, which points to efficient maternal transfer.</p></div>
+        <div class="card"><span class="tag">River dolphins</span><p>Muscle mercury in the Orinoco river dolphin (<i>Inia geoffrensis humboldtiana</i>) reached <b data-draw="v" data-id="24" data-f="max" data-source="conc" data-field="max" data-where="id=24">—</b> µg/g wet weight; artisanal gold mining is regarded as the principal source in the Amazon and Orinoco basins.</p></div>
+      </div>
+    </section>
+    <section id="coverage">
+      <h2>Geographic and chemical coverage</h2>
+      <div class="grid2">
+        <div class="card"><span class="muted">Concentration values by contaminant group (Latin America)</span><div class="chart" id="g-group" data-draw="barGrupo" data-source="porGrupo"></div></div>
+        <div class="card"><span class="muted">Studies by country or territory (Latin America)</span><div class="chart" id="g-country" data-draw="barPais" data-source="porPais"></div></div>
+      </div>
+      <div class="card" id="matrix-card"><span class="muted">Number of values by species and contaminant group (Latin America). Empty cells indicate knowledge gaps.</span><div class="chart" id="g-matrix" data-draw="matriz" data-source="matriz"></div></div>
+    </section>
+  </div>
+
+  <div class="pane" id="species" role="tabpanel" aria-labelledby="tab-species" hidden>
+    <section id="ranges">
+      <h2>Concentrations by species: mean, minimum and maximum</h2>
+      <p class="muted">Each row represents one species in one tissue. The grey bar spans the reported minimum to maximum; a filled dot marks the mean of study means (or medians); a triangle marks a reported maximum where no central value is available. Logarithmic scale. Values should be compared only within the same basis (wet, dry or lipid weight). Whether each study reports a standard deviation is indicated in the tables, without pooling dispersion across studies.</p>
+      <div class="controls">
+        <label for="f-analito">Contaminant<select class="dash-select" id="f-analito" data-draw="selAnalito" data-source="conc" aria-label="Contaminant"></select></label>
+        <label for="f-base">Basis<select class="dash-select" id="f-base" data-draw="selBase" data-source="conc" aria-label="Basis"></select></label>
+        <label for="f-tecido">Tissue<select class="dash-select" id="f-tecido" data-draw="selTecido" data-source="conc" aria-label="Tissue"></select></label>
+        <label for="f-escopo">Region<select class="dash-select" id="f-escopo" aria-label="Region"><option value="">Latin America and global</option><option value="Latin America">Latin America only</option><option value="Global">Global comparison only</option></select></label>
+      </div>
+      <div class="legend">
+        <span><span class="sw" data-c="0"></span>Latin America</span>
+        <span><span class="sw" data-c="1"></span>Global (comparison)</span>
+        <span><span class="swl"></span>Minimum to maximum</span>
+      </div>
+      <div class="card"><div class="chart" id="g-ranges" data-draw="faixas" data-source="resumo"></div></div>
+      <div class="tw">
+        <table id="t-summary" data-source="resumo" data-row-key="key">
+          <thead><tr><th data-field="species">Species</th><th data-field="tissue">Tissue</th><th data-field="scope">Region</th><th class="num" data-field="n_valores">Values</th><th class="num" data-field="media">Mean</th><th class="num" data-field="min">Min.</th><th class="num" data-field="max">Max.</th><th data-field="sd_reported">SD reported</th><th data-field="unit">Unit</th></tr></thead>
+          <tbody data-draw="tabResumo"></tbody>
+        </table>
+      </div>
+    </section>
+    <section id="values">
+      <h2>All reported values for the selected contaminant</h2>
+      <div class="tw">
+        <table id="t-values" data-source="conc" data-row-key="id">
+          <thead><tr><th data-field="cite">Study</th><th data-field="country">Country</th><th data-field="area">Area</th><th data-field="species">Species</th><th data-field="tissue">Tissue</th><th data-field="stat">Statistic</th><th class="num" data-field="mean">Mean/median</th><th class="num" data-field="min">Min.</th><th class="num" data-field="max">Max.</th><th data-field="sd_reported">SD reported</th><th class="num" data-field="n">n</th><th data-field="unit">Unit</th><th data-field="note">Note</th></tr></thead>
+          <tbody data-draw="tabValores"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="pane" id="focal" role="tabpanel" aria-labelledby="tab-focal" hidden>
+    <section id="map-sec">
+      <h2>Sampling locations: Guiana dolphin, franciscana and river dolphins</h2>
+      <p class="muted">Points mark the approximate centroid of the area named in each abstract, not exact sampling coordinates; circle size reflects the number of studies at that location. Records described only at a broad scale (for example, "Brazilian coast") are listed in the table but are not mapped.</p>
+      <div class="controls"><label for="f-focal">Species<select class="dash-select" id="f-focal" aria-label="Focal species"><option value="">All focal species</option><option value="Sotalia guianensis">Sotalia guianensis</option><option value="Pontoporia blainvillei">Pontoporia blainvillei</option><option value="Inia spp.">Inia spp.</option><option value="Sotalia fluviatilis">Sotalia fluviatilis</option></select></label></div>
+      <div class="legend" id="map-legend">
+        <span><span class="sw" data-c="0"></span><i>Sotalia guianensis</i></span>
+        <span><span class="sw" data-c="1"></span><i>Pontoporia blainvillei</i></span>
+        <span><span class="sw" data-c="2"></span><i>Inia</i> spp.</span>
+        <span><span class="sw" data-c="3"></span><i>Sotalia fluviatilis</i></span>
+      </div>
+      <div class="card"><div class="chart" id="g-map" data-draw="mapa" data-source="sites basemap" style="min-height:420px"></div></div>
+    </section>
+    <section id="timeline-sec">
+      <h2>Timeline of studies and associated topics</h2>
+      <p class="muted">Each dot is one study of a focal species, placed by publication year and coloured by topic; studies addressing several topics appear once per topic.</p>
+      <div class="legend" id="tl-legend">
+        <span><span class="sw" data-c="0"></span>Metals and metalloids</span>
+        <span><span class="sw" data-c="1"></span>Legacy POPs</span>
+        <span><span class="sw" data-c="2"></span>Flame retardants and organobromines</span>
+        <span><span class="sw" data-c="3"></span>Emerging contaminants (PFAS, UV filters, PAHs)</span>
+        <span><span class="sw" data-c="4"></span>Organotins</span>
+        <span><span class="sw" data-c="5"></span>Plastics</span>
+        <span><span class="sw" data-c="6"></span>Noise and vessel traffic</span>
+      </div>
+      <div class="card"><div class="chart" id="g-timeline" data-draw="timeline" data-source="sites"></div></div>
+    </section>
+    <section id="trend-sec">
+      <h2>Temporal patterns in <i>Sotalia guianensis</i> and <i>Pontoporia blainvillei</i></h2>
+      <div class="caution" id="trend-caution">
+        <span class="tag">Interpret with caution</span>
+        <p>This chart places values by publication year, which is not the sampling year, and combines studies that differ in:</p>
+        <ul>
+          <li>statistic reported (means or medians versus range maxima);</li>
+          <li>region and population sampled (for example, highly industrialised bays versus open coast);</li>
+          <li>sample origin (stranded or bycaught carcasses versus biopsies of free-ranging animals) and tissue;</li>
+          <li>analytical approach (GC-ECD versus GC-MS, number of PCB congeners summed, lipid determination method).</li>
+        </ul>
+        <p>Apparent changes across studies may therefore reflect methodological and sampling heterogeneity rather than true environmental trends. The within-study trends reported by the authors (table below) offer more reliable evidence.</p>
+      </div>
+      <div class="controls"><label for="f-trend">Compound<select class="dash-select" id="f-trend" aria-label="Compound"><option value="ΣPCB">ΣPCB (ng/g lw, blubber)</option><option value="ΣDDT">ΣDDT (ng/g lw, blubber)</option><option value="ΣPBDE">ΣPBDE (ng/g lw, blubber)</option></select></label></div>
+      <div class="legend">
+        <span><span class="sw" data-c="0"></span><i>Sotalia guianensis</i></span>
+        <span><span class="sw" data-c="1"></span><i>Pontoporia blainvillei</i></span>
+        <span><span class="sw" style="background:var(--color-fg-muted)"></span>Mean or median</span>
+        <span><span class="swo"></span>Maximum of reported range</span>
+        <span><span class="swl"></span>Reported range</span>
+      </div>
+      <div class="card"><div class="chart" id="g-trend" data-draw="trend" data-source="conc"></div></div>
+      <h3>Temporal trends reported within individual studies</h3>
+      <div class="tw">
+        <table id="t-trends" data-source="trends" data-row-key="ref">
+          <thead><tr><th data-field="cite">Study</th><th data-field="species">Species</th><th data-field="contaminant">Contaminants</th><th data-field="period">Period</th><th data-field="area">Area</th><th data-field="direction">Direction</th><th data-field="finding">Finding</th></tr></thead>
+          <tbody data-draw="tabTrends"></tbody>
+        </table>
+      </div>
+      <h3>Sampling records of focal species</h3>
+      <div class="tw">
+        <table id="t-sites" data-source="sites" data-row-key="key">
+          <thead><tr><th data-field="cite">Study</th><th data-field="species">Species</th><th data-field="country">Country</th><th data-field="area">Area</th><th data-field="topics">Topics</th><th data-field="mapped">Mapped</th></tr></thead>
+          <tbody data-draw="tabSites"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="pane" id="pressures" role="tabpanel" aria-labelledby="tab-pressures" hidden>
+    <section>
+      <h2>Plastics, underwater noise, vessel traffic and other pressures</h2>
+      <p class="muted">Studies without comparable concentration data. FO denotes frequency of occurrence (% of individuals containing the item).</p>
+      <div class="tw">
+        <table id="t-pressures" data-source="qual" data-row-key="ref">
+          <thead><tr><th data-field="tipo">Pressure</th><th data-field="cite">Study</th><th data-field="country">Country</th><th data-field="area">Area</th><th data-field="species">Species</th><th class="num" data-field="n">n</th><th class="num" data-field="fo">FO %</th><th data-field="achado">Main finding</th></tr></thead>
+          <tbody data-draw="tabQual"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="pane" id="studies" role="tabpanel" aria-labelledby="tab-studies" hidden>
+    <section>
+      <h2>Studies reviewed</h2>
+      <p class="muted">Each record links to its DOI, PubMed, SciSpace or Consensus page for individual appraisal. The CSV files open in any spreadsheet software and are also available in the repository's data folder.</p>
+      <div class="btns">
+        <button type="button" class="btn" id="dl-studies" data-dl="estudos">Download studies (CSV)</button>
+        <button type="button" class="btn" id="dl-values" data-dl="conc">Download concentration values (CSV)</button>
+        <button type="button" class="btn" id="dl-sites" data-dl="sites">Download focal-species records (CSV)</button>
+        <span class="muted" data-draw="dlmsg"></span>
+      </div>
+      <div class="tw">
+        <table id="t-studies" data-source="estudos" data-row-key="ref">
+          <thead><tr><th data-field="cite">Study</th><th data-field="title">Title</th><th data-field="country">Country or region</th><th data-field="topics">Topics</th><th data-field="tipo">Type</th><th data-field="database">Database</th><th class="num" data-field="valores">Values</th></tr></thead>
+          <tbody data-draw="tabEstudos"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="pane prov" id="provenance" role="tabpanel" aria-labelledby="tab-provenance" hidden>
+    <section id="prov-sources">
+      <h2>Data provenance</h2>
+      <div class="grid2">
+        <div class="card"><span class="muted">Studies retained, by database of first retrieval</span><div class="chart" id="g-db" data-draw="barBase" data-source="porBase" style="min-height:120px"></div></div>
+        <div class="card" data-read lang="en">
+          <h3>Search strategy</h3>
+          <p>Searches were conducted in PubMed, SciSpace and Consensus on 18 November 2026. Cetacean terms (dolphin, whale, porpoise, cetacean, <i>Sotalia</i>, <i>Pontoporia</i>, <i>Inia</i>) were combined with contaminant terms (mercury, metals, trace elements, PCB, DDT, organochlorine, PBDE, PFAS, microplastic, PAH, organotin, pharmaceuticals, UV filters, noise, vessel traffic) and with the names of Latin American countries. Additional searches targeted global reviews to provide a comparative context.</p>
+        </div>
+      </div>
+      <div class="card" data-read lang="en">
+        <h3>Screening and extraction</h3>
+        <ul>
+          <li>Records were deduplicated by normalised title and DOI. Where a preprint and its peer-reviewed version coexisted, only the latter was retained (for example, Montone et al. 2022, SSRN and <i>Environmental Research</i>).</li>
+          <li>Studies from the northern Gulf of Mexico (United States) were considered outside the regional scope; selected studies from other regions were kept only as a global comparison.</li>
+          <li>All values were transcribed from abstracts. Studies reporting results only in full-text tables are listed without values; their inclusion would require full-text extraction.</li>
+          <li>Metals and metalloids are expressed in µg/g; organic compounds in ng/g (values originally in µg/g were multiplied by 1,000). Basis: ww = wet weight, dw = dry weight, lw = lipid weight; n.s. = not specified in the abstract.</li>
+          <li>Sampling locations are approximate centroids of the areas named in each abstract and were assigned by the reviewer.</li>
+        </ul>
+      </div>
+    </section>
+    <section id="prov-interpretation">
+      <h2>Interpretive notes</h2>
+      <div class="card" data-read lang="en">
+        <ul>
+          <li><b>Standard deviation.</b> Dispersion is reported only as a binary indicator (whether the study provides an SD). Standard deviations were not pooled or recomputed across studies, because differences in sample size, tissue and statistic would render such estimates misleading.</li>
+          <li><b>Central values.</b> In the species synthesis, the mean is the arithmetic mean of study means or medians; it is a descriptive summary and not a weighted meta-analytic estimate.</li>
+          <li><b>Basis of expression.</b> For the same tissue, dry-weight concentrations are typically three to five times higher than wet-weight concentrations; lipid-normalised values are not comparable with either.</li>
+          <li><b>Sample origin.</b> Stranded and bycaught animals may differ in age, health and body condition from free-ranging individuals sampled by biopsy, which affects contaminant burdens.</li>
+          <li><b>Detection limits.</b> Values reported below the detection limit are shown at that limit. "Several species" groups results that the abstract does not disaggregate by species.</li>
+        </ul>
+      </div>
+    </section>
+    <section id="gaps">
+      <h2>Knowledge gaps</h2>
+      <div class="card" data-read lang="en">
+        <ul>
+          <li>No study of contaminants in cetaceans from Guyana or Suriname was retrieved. French Guiana is represented by a single plastic-ingestion record (two Guiana dolphins). Venezuela (Lake Maracaibo) and Ecuador (Gulf of Guayaquil; humpback whales breeding offshore) contribute studies whose abstracts do not report concentrations.</li>
+          <li>Most values originate from Brazil, particularly the Southeast, and from two coastal species, the Guiana dolphin and the franciscana. Oceanic odontocetes and mysticetes remain comparatively understudied.</li>
+          <li>PFAS, pharmaceuticals, UV filters, pyrethroids, phthalates and PAHs are each represented by one or very few regional studies. Microplastic assessments in cetaceans have emerged only since 2023.</li>
+          <li>Research on underwater noise has focused chiefly on behavioural and acoustic responses. Measured exposure levels remain scarce, with one passive acoustic monitoring characterisation for the Southwestern Atlantic, and regional licensing and seismic-survey regulations seldom require acoustic impact assessment.</li>
+          <li>Many studies report ranges without means or standard deviations, which constrains quantitative synthesis and precludes a formal meta-analysis on the basis of abstracts alone.</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <footer class="credit">Prepared for the <a href="https://www.lecufpr.net" target="_blank" rel="noopener">Laboratório de Ecologia e Conservação (LEC), Universidade Federal do Paraná (UFPR) · www.lecufpr.net</a>. Literature review compiled from PubMed, SciSpace and Consensus (18 November 2026).</footer>
+</div>
+
+<script>{
+dash.calc('kpis', {
+  inputs: ['conc', 'estudos'],
+  title: 'Review totals',
+  description: 'Counts of studies, values, species and Latin American countries with concentration values.',
+  fn: (conc, estudos) => [{
+    estudos: estudos.length,
+    valores: conc.length,
+    especies: new Set(conc.map((r) => r.species)).size,
+    paises: new Set(conc.filter((r) => r.scope === 'Latin America').flatMap((r) => r.country.split('/'))).size
+  }]
+});
+dash.calc('porGrupo', {
+  inputs: ['conc'],
+  title: 'Values by contaminant group',
+  description: 'Number of Latin American concentration values in each contaminant group.',
+  fn: (conc) => {
+    const m = new Map();
+    conc.filter((r) => r.scope === 'Latin America').forEach((r) => m.set(r.group, (m.get(r.group) || 0) + 1));
+    return [...m].map(([group, valores]) => ({group, valores})).sort((a, b) => b.valores - a.valores);
+  }
+});
+dash.calc('porPais', {
+  inputs: ['estudos'],
+  title: 'Studies by country',
+  description: 'Studies that address each Latin American country or territory; a study may count towards more than one country.',
+  fn: (estudos) => {
+    const la = ['Brazil','Argentina','Chile','Uruguay','Colombia','Venezuela','Bolivia','Panama','Ecuador','Peru','Mexico','French Antilles','Guyana','Suriname','French Guiana'];
+    const m = new Map();
+    let total = 0;
+    estudos.forEach((s) => {
+      const cs = new Set(s.country.split(/ · |\//).map((c) => c.trim()).filter((c) => la.includes(c)));
+      if (cs.size) total++;
+      cs.forEach((c) => m.set(c, (m.get(c) || 0) + 1));
+    });
+    return [...m].map(([country, estudos]) => ({country, estudos, pct: Math.round(1000 * estudos / total) / 10})).sort((a, b) => b.estudos - a.estudos);
+  }
+});
+dash.calc('porBase', {
+  inputs: ['estudos'],
+  title: 'Studies by database',
+  description: 'Number of retained studies by the database in which they were first retrieved.',
+  fn: (estudos) => {
+    const m = new Map();
+    estudos.forEach((s) => m.set(s.database, (m.get(s.database) || 0) + 1));
+    return [...m].map(([database, estudos]) => ({database, estudos})).sort((a, b) => b.estudos - a.estudos);
+  }
+});
+dash.calc('matriz', {
+  inputs: ['conc'],
+  title: 'Species × group matrix',
+  description: 'Number of Latin American values by species and contaminant group.',
+  fn: (conc) => {
+    const m = new Map();
+    conc.filter((r) => r.scope === 'Latin America').forEach((r) => {
+      const k = r.species + '|' + r.group;
+      m.set(k, (m.get(k) || 0) + 1);
+    });
+    return [...m].map(([k, valores]) => { const [species, group] = k.split('|'); return {key: k, species, group, valores}; });
+  }
+});
+dash.calc('resumo', {
+  inputs: ['conc'],
+  title: 'Species synthesis',
+  description: 'Mean of study means, minimum, maximum and whether studies report an SD, by contaminant, basis, tissue, species and region.',
+  fn: (conc) => {
+    const g = new Map();
+    conc.forEach((r) => {
+      const key = [r.analyte, r.unit, r.tissue, r.species, r.scope].join('|');
+      if (!g.has(key)) g.set(key, []);
+      g.get(key).push(r);
+    });
+    const out = [];
+    g.forEach((rs, key) => {
+      const pts = rs.filter((r) => r.mean != null).map((r) => r.mean);
+      const all = rs.flatMap((r) => [r.min, r.mean, r.max]).filter((v) => v != null);
+      const media = pts.length ? pts.reduce((a, b) => a + b, 0) / pts.length : null;
+      const k = rs.filter((r) => r.sd_reported === 'Yes').length;
+      const r0 = rs[0];
+      out.push({key, analyte: r0.analyte, unit: r0.unit, tissue: r0.tissue, species: r0.species, common: r0.common, scope: r0.scope,
+        n_valores: rs.length, n_estudos: new Set(rs.map((r) => r.ref)).size,
+        media: media == null ? null : +media.toPrecision(4),
+        min: all.length ? Math.min(...all) : null, max: all.length ? Math.max(...all) : null,
+        sd_reported: k === 0 ? 'No' : k === rs.length ? 'Yes' : `Partly (${k} of ${rs.length})`,
+        areas: [...new Set(rs.map((r) => r.country + ' – ' + r.area))].join('; ')});
+    });
+    return out;
+  }
+});
+
+window.cetF = window.cetF || {analyte: 'Hg', unit: null, tissue: '', scope: '', focal: '', trend: 'ΣPCB', dlmsg: ''};
+window.cetFmt = (v) => {
+  if (v == null || v === '') return '';
+  const a = Math.abs(v);
+  const d = a >= 100 ? 0 : a >= 10 ? 1 : a >= 1 ? 2 : 3;
+  return v.toLocaleString('en-GB', {maximumFractionDigits: d});
+};
+window.cetRedraw = () => ['selBase', 'selTecido', 'faixas', 'tabResumo', 'tabValores'].forEach((n) => dash.draw(n));
+window.cetTip = function (box) {
+  let t = box.querySelector('.tip');
+  if (!t) { t = document.createElement('div'); t.className = 'tip'; t.hidden = true; box.appendChild(t); }
+  return {
+    show(ev, parts) {
+      t.replaceChildren(...parts.map(([k, v]) => { const d = document.createElement('div'); if (k) { const s = document.createElement('span'); s.className = 'k'; s.textContent = k + ': '; d.appendChild(s); } const b = document.createElement(k ? 'span' : 'b'); b.textContent = v; d.appendChild(b); return d; }));
+      t.hidden = false;
+      const r = box.getBoundingClientRect();
+      let x = ev.clientX - r.left + 12, y = ev.clientY - r.top + 12;
+      if (x + t.offsetWidth > box.clientWidth) x = Math.max(0, ev.clientX - r.left - t.offsetWidth - 12);
+      t.style.left = x + 'px'; t.style.top = y + 'px';
+    },
+    hide() { t.hidden = true; }
+  };
+};
+document.querySelectorAll('.cx .sw[data-c]').forEach((e) => { e.style.background = dash.colors[+e.dataset.c % dash.colors.length]; });
+
+// Tabs
+const panes = () => [...document.querySelectorAll('.cx .pane')];
+function openTab(id) {
+  const ids = panes().map((p) => p.id);
+  if (!ids.includes(id)) id = 'overview';
+  panes().forEach((p) => { p.hidden = p.id !== id; });
+  document.querySelectorAll('.cx .tabs button').forEach((b) => b.setAttribute('aria-selected', b.dataset.tab === id ? 'true' : 'false'));
+  window.cetTab = id;
+}
+document.querySelectorAll('.cx .tabs button').forEach((b) => b.addEventListener('click', () => { openTab(b.dataset.tab); dash.setLink(b.dataset.tab); }));
+const h0 = (location.hash || '').slice(1);
+if (h0) openTab(h0);
+window.addEventListener('beforeprint', () => { panes().forEach((p) => { p.hidden = false; }); });
+window.addEventListener('afterprint', () => openTab(window.cetTab || 'overview'));
+
+// Filters
+document.querySelectorAll('#f-escopo').forEach((s) => { s.value = window.cetF.scope; s.addEventListener('change', () => { window.cetF.scope = s.value; window.cetRedraw(); }); });
+document.querySelectorAll('#f-focal').forEach((s) => { s.value = window.cetF.focal; s.addEventListener('change', () => { window.cetF.focal = s.value; dash.draw('mapa'); }); });
+document.querySelectorAll('#f-trend').forEach((s) => { s.value = window.cetF.trend; s.addEventListener('change', () => { window.cetF.trend = s.value; dash.draw('trend'); }); });
+
+// Downloads
+const csvCell = (v) => { if (v == null) return ''; const s = String(v); return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+const COLS = {
+  estudos: ['cite', 'year', 'title', 'journal', 'country', 'topics', 'tipo', 'database', 'valores', 'link'],
+  conc: ['id', 'cite', 'year', 'scope', 'country', 'area', 'species', 'common', 'group', 'analyte', 'tissue', 'unit', 'stat', 'mean', 'min', 'max', 'sd_reported', 'n', 'note', 'link'],
+  sites: ['cite', 'year', 'species', 'country', 'area', 'lat', 'lon', 'mapped', 'topics', 'link']
+};
+const NAMES = {estudos: 'cetacean_contaminants_LatAm_studies.csv', conc: 'cetacean_contaminants_LatAm_values.csv', sites: 'cetacean_contaminants_LatAm_focal_species_records.csv'};
+document.querySelectorAll('.cx .btn[data-dl]').forEach((b) => b.addEventListener('click', async () => {
+  const id = b.dataset.dl;
+  const d = dash.data(id);
+  const say = (m) => { window.cetF.dlmsg = m; dash.draw('dlmsg'); };
+  if (d.status !== 'ok') { say('The data are still loading; please try again in a moment.'); return; }
+  const cols = COLS[id];
+  const text = '﻿' + [cols.join(','), ...d.data.map((r) => cols.map((c) => csvCell(r[c])).join(','))].join('\n');
+  const downloads = await claude.use('downloads');
+  if (!downloads) { say('Downloads are not available in this view; the same rows can be exported from Sources.'); return; }
+  try { await downloads.save({filename: NAMES[id], data: text}); say('File saved.'); }
+  catch (e) { say(e && e.code === 'declined' ? 'Download cancelled.' : 'The file could not be saved here; the same rows can be exported from Sources.'); }
+}));
+}</script>
+
+<script>{
+const fmt = (v) => window.cetFmt(v);
+const enc = encodeURIComponent;
+
+dash.draw('dlmsg', (el) => { el.textContent = window.cetF.dlmsg || ''; });
+dash.draw('kpi', (el) => {
+  const d = dash.data('kpis');
+  el.classList.toggle('dash-skeleton', d.status === 'loading');
+  el.textContent = d.status === 'ok' && d.data[0] ? d.data[0][el.dataset.k].toLocaleString('en-GB') : '—';
+});
+dash.draw('lider', (el) => { const d = dash.data('porPais'); el.textContent = d.status === 'ok' && d.data[0] ? d.data[0].country : '—'; });
+dash.draw('liderpct', (el) => { const d = dash.data('porPais'); el.textContent = d.status === 'ok' && d.data[0] ? d.data[0].pct.toLocaleString('en-GB') + '%' : '—'; });
+dash.draw('v', (el) => {
+  const d = dash.data('conc');
+  el.classList.toggle('dash-skeleton', d.status === 'loading');
+  const r = d.status === 'ok' ? d.data.find((x) => String(x.id) === el.dataset.id) : null;
+  el.textContent = r ? fmt(r[el.dataset.f]) : '—';
+});
+
+function failMsg(el, d) { el.replaceChildren(); if (d.status === 'error') { const p = document.createElement('div'); p.className = 'fail'; p.textContent = 'Failed to load'; el.appendChild(p); } }
+function hbar(el, src, labelKey, valKey, fieldName) {
+  const d = dash.data(src);
+  if (d.status !== 'ok') { failMsg(el, d); return; }
+  const rows = d.data;
+  const W = Math.max(280, el.clientWidth), bh = 22, gap = 8;
+  el.replaceChildren();
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${rows.length * (bh + gap) + 4}`).attr('role', 'img').attr('aria-label', 'Bar chart: ' + rows.map((r) => r[labelKey] + ' ' + r[valKey]).join(', '));
+  const probe = svg.append('g');
+  let lw = 0; rows.forEach((r) => { const t = probe.append('text').attr('class', 'sp').text(r[labelKey]); lw = Math.max(lw, t.node().getComputedTextLength()); });
+  probe.remove();
+  lw = Math.min(lw + 10, W * 0.45);
+  const x = d3.scaleLinear().domain([0, d3.max(rows, (r) => r[valKey])]).range([0, W - lw - 40]);
+  const tip = window.cetTip(el);
+  const g = svg.selectAll('g.r').data(rows).join('g').attr('class', 'r').attr('transform', (r, i) => `translate(0,${i * (bh + gap)})`);
+  g.append('text').attr('class', 'sp').attr('x', lw - 8).attr('y', bh / 2).attr('dy', '0.35em').attr('text-anchor', 'end').text((r) => r[labelKey]);
+  g.append('rect').attr('x', lw).attr('y', 3).attr('height', bh - 6).attr('rx', 4).attr('width', (r) => Math.max(2, x(r[valKey]))).style('fill', dash.colors[0]);
+  g.append('text').attr('class', 'val').attr('x', (r) => lw + x(r[valKey]) + 6).attr('y', bh / 2).attr('dy', '0.35em')
+    .attr('data-source', src).attr('data-field', valKey).attr('data-where', (r) => enc(labelKey) + '=' + enc(r[labelKey])).text((r) => r[valKey]);
+  g.append('rect').attr('x', 0).attr('y', 0).attr('width', W).attr('height', bh + gap).style('fill', 'transparent')
+    .on('pointermove', (ev, r) => tip.show(ev, [[null, r[labelKey]], [fieldName, String(r[valKey])]])).on('pointerleave', () => tip.hide());
+}
+dash.draw('barGrupo', (el) => hbar(el, 'porGrupo', 'group', 'valores', 'Values'));
+dash.draw('barPais', (el) => hbar(el, 'porPais', 'country', 'estudos', 'Studies'));
+dash.draw('barBase', (el) => hbar(el, 'porBase', 'database', 'estudos', 'Studies'));
+
+dash.draw('matriz', (el) => {
+  const d = dash.data('matriz');
+  if (d.status !== 'ok') { failMsg(el, d); return; }
+  const rows = d.data;
+  const gs = d3.rollups(rows, (v) => d3.sum(v, (r) => r.valores), (r) => r.group).sort((a, b) => b[1] - a[1]).map((x) => x[0]);
+  const sps = d3.rollups(rows, (v) => d3.sum(v, (r) => r.valores), (r) => r.species).sort((a, b) => b[1] - a[1]).map((x) => x[0]);
+  const W = Math.max(320, el.clientWidth);
+  el.replaceChildren();
+  const svg0 = d3.select(el).append('svg');
+  let lw = 0; sps.forEach((s) => { const t = svg0.append('text').attr('class', 'sp').text(s); lw = Math.max(lw, t.node().getComputedTextLength()); });
+  svg0.remove();
+  lw = Math.min(lw + 12, W * 0.42);
+  const top = 110, ch = 22;
+  const cw = Math.max(18, (W - lw - 80) / gs.length);
+  const H = top + sps.length * ch + 4;
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${lw + cw * gs.length + 80} ${H}`).attr('role', 'img').attr('aria-label', 'Matrix of the number of values by species and contaminant group');
+  const mx = d3.max(rows, (r) => r.valores);
+  const op = d3.scaleSqrt().domain([1, mx]).range([0.25, 1]);
+  svg.selectAll('text.gh').data(gs).join('text').attr('class', 'gh').attr('transform', (g, i) => `translate(${lw + i * cw + cw / 2},${top - 6}) rotate(-45)`).text((g) => g);
+  svg.selectAll('text.sh').data(sps).join('text').attr('class', 'sp').attr('x', lw - 8).attr('y', (s, i) => top + i * ch + ch / 2).attr('dy', '0.35em').attr('text-anchor', 'end').style('font-style', 'italic').text((s) => s);
+  const by = new Map(rows.map((r) => [r.key, r]));
+  const tip = window.cetTip(el);
+  sps.forEach((s, i) => gs.forEach((g, j) => {
+    const r = by.get(s + '|' + g);
+    const cell = svg.append('g').attr('transform', `translate(${lw + j * cw},${top + i * ch})`);
+    cell.append('rect').attr('x', 1).attr('y', 1).attr('width', cw - 2).attr('height', ch - 2).attr('rx', 3)
+      .style('fill', r ? dash.colors[0] : 'var(--cds-chart-grid)').style('fill-opacity', r ? op(r.valores) : 0.35);
+    if (r) cell.append('text').attr('class', 'val').attr('x', cw / 2).attr('y', ch / 2).attr('dy', '0.35em').attr('text-anchor', 'middle')
+      .attr('data-source', 'matriz').attr('data-field', 'valores').attr('data-where', 'key=' + enc(r.key)).style('font-size', '10px').text(r.valores);
+    cell.append('rect').attr('width', cw).attr('height', ch).style('fill', 'transparent')
+      .on('pointermove', (ev) => tip.show(ev, [[null, s], ['Group', g], ['Values', r ? String(r.valores) : 'none']])).on('pointerleave', () => tip.hide());
+  }));
+});
+}</script>
+
+<script>{
+const F = window.cetF;
+const fmt = (v) => window.cetFmt(v);
+const enc = encodeURIComponent;
+function optsFor(conc) {
+  const a = conc.filter((r) => r.analyte === F.analyte);
+  const units = d3.rollups(a, (v) => v.length, (r) => r.unit).sort((x, y) => y[1] - x[1]).map((x) => x[0]);
+  if (!units.includes(F.unit)) F.unit = units[0] || null;
+  const tissues = [...new Set(a.filter((r) => r.unit === F.unit).map((r) => r.tissue))].sort();
+  if (F.tissue && !tissues.includes(F.tissue)) F.tissue = '';
+  return {units, tissues};
+}
+dash.draw('selAnalito', (sel) => {
+  const d = dash.data('conc');
+  if (d.status !== 'ok') { sel.replaceChildren(); return; }
+  const an = d3.rollups(d.data, (v) => v.length, (r) => r.analyte).sort((a, b) => b[1] - a[1]);
+  sel.replaceChildren(...an.map(([a, n]) => new Option(`${a} (${n})`, a)));
+  sel.value = F.analyte;
+  sel.onchange = () => { F.analyte = sel.value; F.unit = null; F.tissue = ''; window.cetRedraw(); };
+});
+dash.draw('selBase', (sel) => {
+  const d = dash.data('conc');
+  if (d.status !== 'ok') { sel.replaceChildren(); return; }
+  const {units} = optsFor(d.data);
+  sel.replaceChildren(...units.map((u) => new Option(u, u)));
+  sel.value = F.unit || '';
+  sel.onchange = () => { F.unit = sel.value; F.tissue = ''; window.cetRedraw(); };
+});
+dash.draw('selTecido', (sel) => {
+  const d = dash.data('conc');
+  if (d.status !== 'ok') { sel.replaceChildren(); return; }
+  const {tissues} = optsFor(d.data);
+  sel.replaceChildren(new Option('All tissues', ''), ...tissues.map((t) => new Option(t, t)));
+  sel.value = F.tissue;
+  sel.onchange = () => { F.tissue = sel.value; window.cetRedraw(); };
+});
+const pick = (rows) => rows.filter((r) => r.analyte === F.analyte && r.unit === F.unit && (!F.tissue || r.tissue === F.tissue) && (!F.scope || r.scope === F.scope));
+const logTicks = (x) => { const lead = (t) => +t.toExponential()[0]; let t = x.ticks().filter((v) => lead(v) === 1); if (t.length < 3) t = x.ticks().filter((v) => [1, 2, 5].includes(lead(v))); return t; };
+window.cetLogTicks = logTicks;
+
+dash.draw('faixas', (el) => {
+  const d = dash.data('resumo'), c = dash.data('conc');
+  if (d.status !== 'ok' || c.status !== 'ok') { failMsg2(el, d); return; }
+  optsFor(c.data);
+  const rows = pick(d.data).sort((a, b) => (b.max ?? b.media) - (a.max ?? a.media));
+  el.replaceChildren();
+  if (!rows.length) { const p = document.createElement('div'); p.className = 'fail'; p.textContent = 'No values are available for this combination of filters.'; el.appendChild(p); return; }
+  const W = Math.max(300, el.clientWidth), rh = 30, top = 40;
+  const label = (r) => `${r.species} · ${r.tissue}`;
+  const svg0 = d3.select(el).append('svg');
+  let lw = 0; rows.forEach((r) => { const t = svg0.append('text').attr('class', 'sp').text(label(r)); lw = Math.max(lw, t.node().getComputedTextLength()); });
+  svg0.remove();
+  lw = Math.min(lw + 12, W * 0.48);
+  const H = top + rows.length * rh + 8;
+  const vals = rows.flatMap((r) => [r.min, r.max, r.media]).filter((v) => v != null && v > 0);
+  const x = d3.scaleLog().domain([d3.min(vals) / 1.5, d3.max(vals) * 1.5]).range([lw, W - 54]).nice();
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', `Concentration ranges of ${F.analyte} (${F.unit}) by species, logarithmic scale`);
+  const ticks = logTicks(x);
+  svg.append('g').selectAll('line').data(ticks).join('line').attr('x1', x).attr('x2', x).attr('y1', top - 6).attr('y2', H - 4).style('stroke', 'var(--cds-chart-grid)');
+  svg.append('g').selectAll('text').data(ticks).join('text').attr('x', x).attr('y', top - 12).attr('text-anchor', 'middle').text((t) => t.toLocaleString('en-GB'));
+  svg.append('text').attr('x', lw).attr('y', 10).text('Concentration (' + F.unit + ')');
+  const tip = window.cetTip(el);
+  const g = svg.selectAll('g.r').data(rows).join('g').attr('class', 'r').attr('transform', (r, i) => `translate(0,${top + i * rh})`);
+  g.append('text').attr('class', 'sp').attr('x', lw - 8).attr('y', rh / 2).attr('dy', '0.35em').attr('text-anchor', 'end').text(label);
+  const col = (r) => r.scope === 'Latin America' ? dash.colors[0] : dash.colors[1];
+  g.filter((r) => r.min != null && r.max != null && r.min > 0 && r.max > r.min).append('line')
+    .attr('x1', (r) => x(r.min)).attr('x2', (r) => x(r.max)).attr('y1', rh / 2).attr('y2', rh / 2)
+    .style('stroke', 'var(--cds-chart-muted)').style('stroke-width', 8).style('stroke-linecap', 'round').style('stroke-opacity', 0.8);
+  g.filter((r) => r.media != null).append('circle').attr('cx', (r) => x(r.media)).attr('cy', rh / 2).attr('r', 5.5)
+    .style('fill', col).style('stroke', 'var(--color-panel)').style('stroke-width', 2);
+  g.filter((r) => r.media == null && r.max != null).append('path')
+    .attr('d', (r) => `M${x(r.max)},${rh / 2 - 6}L${x(r.max) + 5},${rh / 2}L${x(r.max)},${rh / 2 + 6}Z`).style('fill', col);
+  g.append('text').attr('class', 'val').attr('x', (r) => x(r.max ?? r.media) + 9).attr('y', rh / 2).attr('dy', '0.35em')
+    .attr('data-source', 'resumo').attr('data-field', (r) => r.max != null ? 'max' : 'media').attr('data-where', (r) => 'key=' + enc(r.key))
+    .text((r) => fmt(r.max ?? r.media));
+  g.append('rect').attr('x', 0).attr('width', W).attr('height', rh).style('fill', 'transparent')
+    .on('pointermove', (ev, r) => tip.show(ev, [[null, `${r.species}${r.common ? ' (' + r.common + ')' : ''}`], ['Tissue', r.tissue], ['Area', r.areas],
+      ['Mean', r.media == null ? 'not reported' : fmt(r.media)], ['Min. – max.', `${fmt(r.min)} – ${fmt(r.max)}`], ['SD reported', r.sd_reported], ['Values / studies', `${r.n_valores} / ${r.n_estudos}`], ['Unit', r.unit]]))
+    .on('pointerleave', () => tip.hide());
+});
+function failMsg2(el, d) { el.replaceChildren(); if (d.status === 'error') { const p = document.createElement('div'); p.className = 'fail'; p.textContent = 'Failed to load'; el.appendChild(p); } }
+
+function fillTable(tb, rows, keyOf, cells) {
+  tb.replaceChildren();
+  rows.forEach((r) => {
+    const tr = document.createElement('tr'); tr.dataset.key = keyOf(r);
+    cells.forEach(([get, kind]) => {
+      const td = document.createElement('td'); if (kind === 'num') td.className = 'num';
+      const v = get(r);
+      if (kind === 'link') { const a = document.createElement('a'); a.href = r.link; a.target = '_blank'; a.rel = 'noopener'; a.textContent = v; td.appendChild(a); }
+      else if (kind === 'i') { const i = document.createElement('i'); i.textContent = v ?? ''; td.appendChild(i); }
+      else td.textContent = v ?? '';
+      tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  });
+}
+dash.draw('tabResumo', (tb) => {
+  const d = dash.data('resumo'), c = dash.data('conc');
+  if (d.status !== 'ok' || c.status !== 'ok') { tb.replaceChildren(); return; }
+  optsFor(c.data);
+  fillTable(tb, pick(d.data).sort((a, b) => (b.max ?? b.media) - (a.max ?? a.media)), (r) => enc(r.key),
+    [[(r) => r.species, 'i'], [(r) => r.tissue], [(r) => r.scope], [(r) => r.n_valores, 'num'], [(r) => fmt(r.media), 'num'], [(r) => fmt(r.min), 'num'], [(r) => fmt(r.max), 'num'], [(r) => r.sd_reported], [(r) => r.unit]]);
+});
+dash.draw('tabValores', (tb) => {
+  const c = dash.data('conc');
+  if (c.status !== 'ok') { tb.replaceChildren(); return; }
+  optsFor(c.data);
+  fillTable(tb, c.data.filter((r) => r.analyte === F.analyte && (!F.scope || r.scope === F.scope)).sort((a, b) => (b.year || 0) - (a.year || 0)), (r) => String(r.id),
+    [[(r) => r.cite, 'link'], [(r) => r.country], [(r) => r.area], [(r) => r.species, 'i'], [(r) => r.tissue], [(r) => r.stat], [(r) => fmt(r.mean), 'num'], [(r) => fmt(r.min), 'num'], [(r) => fmt(r.max), 'num'], [(r) => r.sd_reported], [(r) => r.n, 'num'], [(r) => r.unit], [(r) => r.note]]);
+});
+dash.draw('tabQual', (tb) => {
+  const q = dash.data('qual');
+  if (q.status !== 'ok') { tb.replaceChildren(); return; }
+  fillTable(tb, q.data, (r) => enc(r.ref), [[(r) => r.tipo], [(r) => r.cite, 'link'], [(r) => r.country], [(r) => r.area], [(r) => r.species, 'i'], [(r) => r.n, 'num'], [(r) => r.fo, 'num'], [(r) => r.achado]]);
+});
+dash.draw('tabEstudos', (tb) => {
+  const s = dash.data('estudos');
+  if (s.status !== 'ok') { tb.replaceChildren(); return; }
+  fillTable(tb, s.data, (r) => enc(r.ref), [[(r) => r.cite, 'link'], [(r) => r.title], [(r) => r.country], [(r) => r.topics], [(r) => r.tipo], [(r) => r.database], [(r) => r.valores, 'num']]);
+});
+dash.draw('tabTrends', (tb) => {
+  const s = dash.data('trends');
+  if (s.status !== 'ok') { tb.replaceChildren(); return; }
+  fillTable(tb, s.data, (r) => enc(r.ref), [[(r) => r.cite, 'link'], [(r) => r.species, 'i'], [(r) => r.contaminant], [(r) => r.period], [(r) => r.area], [(r) => r.direction], [(r) => r.finding]]);
+});
+dash.draw('tabSites', (tb) => {
+  const s = dash.data('sites');
+  if (s.status !== 'ok') { tb.replaceChildren(); return; }
+  fillTable(tb, [...s.data].sort((a, b) => (a.year || 0) - (b.year || 0)), (r) => r.key, [[(r) => r.cite, 'link'], [(r) => r.species, 'i'], [(r) => r.country], [(r) => r.area], [(r) => r.topics], [(r) => r.mapped]]);
+});
+}</script>
+
+<script>{
+const SPC = {'Sotalia guianensis': 0, 'Pontoporia blainvillei': 1, 'Inia spp.': 2, 'Sotalia fluviatilis': 3, 'Pontoporia / Sotalia': 1};
+const TOPICS = ['Metals & metalloids', 'Legacy POPs', 'Flame retardants & organobromines', 'Emerging contaminants (PFAS, UV filters, PAHs)', 'Organotins', 'Plastics', 'Noise & vessel traffic'];
+const fmt = (v) => window.cetFmt(v);
+
+dash.draw('mapa', (el) => {
+  const s = dash.data('sites'), b = dash.data('basemap');
+  if (s.status !== 'ok' || b.status !== 'ok') { el.replaceChildren(); if (s.status === 'error' || b.status === 'error') { const p = document.createElement('div'); p.className = 'fail'; p.textContent = 'Failed to load'; el.appendChild(p); } return; }
+  const geo = b.data;
+  const F = window.cetF;
+  const pts = s.data.filter((r) => r.lat != null && (!F.focal || r.species === F.focal));
+  const W = Math.max(300, el.clientWidth), H = Math.round(Math.min(640, Math.max(380, W * 0.95)));
+  el.replaceChildren();
+  const svg = d3.select(el).append('svg').attr('class', 'clip').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img')
+    .attr('aria-label', `Map of approximate sampling locations for ${F.focal || 'focal species'}, ${pts.length} records`);
+  const frame = {type: 'Feature', geometry: {type: 'MultiPoint', coordinates: [[-74, 11], [-35, 11], [-74, -40], [-35, -40]]}};
+  const proj = d3.geoMercator().fitExtent([[8, 8], [W - 8, H - 8]], frame);
+  const path = d3.geoPath(proj);
+  svg.append('g').selectAll('path').data(geo.features).join('path').attr('d', path)
+    .style('fill', 'var(--cds-chart-grid)').style('stroke', 'var(--color-border-line)').style('stroke-width', 0.6);
+  const groups = d3.groups(pts, (r) => r.species + '|' + r.lat + '|' + r.lon).map(([k, rs]) => ({species: rs[0].species, lat: rs[0].lat, lon: rs[0].lon, area: rs[0].area, country: rs[0].country, rs}));
+  const rr = d3.scaleSqrt().domain([1, d3.max(groups, (g) => g.rs.length) || 1]).range([5, 13]);
+  const off = {'Sotalia guianensis': [0, 0], 'Pontoporia blainvillei': [7, 5], 'Inia spp.': [0, 0], 'Sotalia fluviatilis': [-7, 5], 'Pontoporia / Sotalia': [7, 5]};
+  const tip = window.cetTip(el);
+  svg.append('g').selectAll('circle').data(groups.sort((a, b) => b.rs.length - a.rs.length)).join('circle')
+    .attr('cx', (g) => proj([g.lon, g.lat])[0] + (off[g.species] || [0, 0])[0]).attr('cy', (g) => proj([g.lon, g.lat])[1] + (off[g.species] || [0, 0])[1])
+    .attr('r', (g) => rr(g.rs.length)).style('fill', (g) => dash.colors[(SPC[g.species] ?? 4) % dash.colors.length]).style('fill-opacity', 0.85)
+    .style('stroke', 'var(--color-panel)').style('stroke-width', 1.5)
+    .on('pointermove', (ev, g) => tip.show(ev, [[null, `${g.area} (${g.country})`], ['Species', g.species], ['Studies', String(g.rs.length)], ...g.rs.slice(0, 6).map((r) => ['', `${r.cite}: ${r.topics}`])]))
+    .on('pointerleave', () => tip.hide());
+  const lab = [['Amazon Basin', -60, -5], ['Orinoco', -66, 7.8], ['Río de la Plata', -54, -36.5]];
+  svg.append('g').selectAll('text').data(lab).join('text').attr('x', (l) => proj([l[1], l[2]])[0]).attr('y', (l) => proj([l[1], l[2]])[1]).style('font-style', 'italic').text((l) => l[0]);
+});
+
+dash.draw('timeline', (el) => {
+  const s = dash.data('sites');
+  if (s.status !== 'ok') { el.replaceChildren(); return; }
+  const lanes = ['Sotalia guianensis', 'Pontoporia blainvillei', 'Inia spp.', 'Sotalia fluviatilis'];
+  const items = [];
+  const seen = new Set();
+  s.data.forEach((r) => {
+    const lane = r.species === 'Pontoporia / Sotalia' ? 'Pontoporia blainvillei' : r.species;
+    if (!lanes.includes(lane) || !r.year) return;
+    r.topics.split(' · ').forEach((t) => { const k = r.ref + '|' + lane + '|' + t; if (seen.has(k)) return; seen.add(k); items.push({lane, year: r.year, topic: t, cite: r.cite, area: r.area}); });
+  });
+  const W = Math.max(320, el.clientWidth);
+  el.replaceChildren();
+  const stack = d3.rollup(items, (v) => v.length, (d) => d.lane, (d) => d.year);
+  const laneH = lanes.map((l) => Math.max(1, d3.max([...(stack.get(l) || new Map()).values()]) || 1) * 11 + 18);
+  const y0 = []; lanes.reduce((acc, l, i) => { y0[i] = acc; return acc + laneH[i]; }, 24);
+  const H = y0[lanes.length - 1] + laneH[lanes.length - 1] + 8;
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Timeline of focal-species studies by year and topic');
+  const probe = svg.append('text').attr('class', 'sp').text('Pontoporia blainvillei'); const lw = probe.node().getComputedTextLength() + 14; probe.remove();
+  const yrs = d3.extent(items, (d) => d.year);
+  const x = d3.scaleLinear().domain([yrs[0] - 1, yrs[1] + 1]).range([lw, W - 12]);
+  const ticks = x.ticks(Math.max(3, Math.floor((W - lw) / 70))).filter((t) => Number.isInteger(t));
+  svg.append('g').selectAll('line').data(ticks).join('line').attr('x1', x).attr('x2', x).attr('y1', 18).attr('y2', H - 4).style('stroke', 'var(--cds-chart-grid)');
+  svg.append('g').selectAll('text').data(ticks).join('text').attr('x', x).attr('y', 12).attr('text-anchor', 'middle').text((t) => t);
+  lanes.forEach((l, i) => {
+    svg.append('text').attr('class', 'sp').attr('x', lw - 10).attr('y', y0[i] + 12).attr('text-anchor', 'end').style('font-style', 'italic').text(l);
+    svg.append('line').attr('x1', lw).attr('x2', W - 12).attr('y1', y0[i] + laneH[i] - 2).attr('y2', y0[i] + laneH[i] - 2).style('stroke', 'var(--color-border-line)');
+  });
+  const cnt = new Map();
+  const tip = window.cetTip(el);
+  items.sort((a, b) => TOPICS.indexOf(a.topic) - TOPICS.indexOf(b.topic));
+  svg.append('g').selectAll('circle').data(items).join('circle')
+    .attr('cx', (d) => x(d.year))
+    .attr('cy', (d) => { const k = d.lane + d.year; const n = cnt.get(k) || 0; cnt.set(k, n + 1); return y0[lanes.indexOf(d.lane)] + 10 + n * 11; })
+    .attr('r', 4.5).style('fill', (d) => dash.colors[Math.max(0, TOPICS.indexOf(d.topic)) % dash.colors.length]).style('stroke', 'var(--color-panel)').style('stroke-width', 1.2)
+    .on('pointermove', (ev, d) => tip.show(ev, [[null, d.cite], ['Topic', d.topic], ['Area', d.area], ['Species', d.lane]])).on('pointerleave', () => tip.hide());
+});
+
+dash.draw('trend', (el) => {
+  const c = dash.data('conc');
+  if (c.status !== 'ok') { el.replaceChildren(); return; }
+  const an = window.cetF.trend;
+  const rows = c.data.filter((r) => r.analyte === an && r.unit === 'ng/g lw' && r.tissue.startsWith('blubber') && (r.species === 'Sotalia guianensis' || r.species === 'Pontoporia blainvillei') && r.year)
+    .map((r) => ({...r, val: r.mean ?? r.max, central: r.mean != null}));
+  el.replaceChildren();
+  if (!rows.length) { const p = document.createElement('div'); p.className = 'fail'; p.textContent = 'No blubber values on a lipid basis are available for this compound.'; el.appendChild(p); return; }
+  const W = Math.max(300, el.clientWidth), H = 300, m = {l: 64, r: 16, t: 14, b: 30};
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', `${an} in Guiana dolphins and franciscanas by publication year, logarithmic scale`);
+  const vals = rows.flatMap((r) => [r.min, r.max, r.mean]).filter((v) => v != null && v > 0);
+  const y = d3.scaleLog().domain([d3.min(vals) / 1.5, d3.max(vals) * 1.5]).range([H - m.b, m.t]).nice();
+  const ex = d3.extent(rows, (r) => r.year);
+  const x = d3.scaleLinear().domain([ex[0] - 1, ex[1] + 1]).range([m.l, W - m.r]);
+  const yt = window.cetLogTicks(y);
+  svg.append('g').selectAll('line').data(yt).join('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y).attr('y2', y).style('stroke', 'var(--cds-chart-grid)');
+  svg.append('g').selectAll('text').data(yt).join('text').attr('x', m.l - 6).attr('y', y).attr('dy', '0.35em').attr('text-anchor', 'end').text((t) => t.toLocaleString('en-GB'));
+  const xt = x.ticks(Math.max(3, Math.floor((W - m.l) / 70))).filter((t) => Number.isInteger(t));
+  svg.append('g').selectAll('text').data(xt).join('text').attr('x', x).attr('y', H - 10).attr('text-anchor', 'middle').text((t) => t);
+  svg.append('text').attr('x', m.l).attr('y', m.t - 2).text(an + ' (ng/g lw)');
+  const jit = (r) => r.species === 'Sotalia guianensis' ? -4 : 4;
+  const col = (r) => dash.colors[r.species === 'Sotalia guianensis' ? 0 : 1];
+  svg.append('g').selectAll('line').data(rows.filter((r) => r.min != null && r.max != null && r.min > 0)).join('line')
+    .attr('x1', (r) => x(r.year) + jit(r)).attr('x2', (r) => x(r.year) + jit(r)).attr('y1', (r) => y(r.min)).attr('y2', (r) => y(r.max))
+    .style('stroke', 'var(--cds-chart-muted)').style('stroke-width', 5).style('stroke-linecap', 'round').style('stroke-opacity', 0.7);
+  const tip = window.cetTip(el);
+  svg.append('g').selectAll('circle').data(rows).join('circle').attr('cx', (r) => x(r.year) + jit(r)).attr('cy', (r) => y(r.val)).attr('r', 5.5)
+    .style('fill', (r) => r.central ? col(r) : 'var(--color-panel)').style('stroke', col).style('stroke-width', 2)
+    .on('pointermove', (ev, r) => tip.show(ev, [[null, r.cite], ['Species', r.species], ['Area', r.area], ['Statistic', r.stat], ['Value', fmt(r.val)], ['Range', r.min != null ? `${fmt(r.min)} – ${fmt(r.max)}` : '—'], ['n', r.n ?? 'n.s.']]))
+    .on('pointerleave', () => tip.hide());
+});
+}</script>
+
+</div>
+<script>window.__redrawAll();</script>
+</body>
+</html>
